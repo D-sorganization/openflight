@@ -1,5 +1,9 @@
 # CLAUDE.md
 
+@AGENTS.md
+
+<!-- Claude Code reads CLAUDE.md; the line above imports AGENTS.md, the single source of agent guidance. Edit AGENTS.md (or its fleet-rules sources), not this file. -->
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
