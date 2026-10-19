@@ -1,0 +1,52 @@
+name: quality-gate
+
+# Minimal repository-hygiene gate. The org rulesets require a `quality-gate`
+# status on the default branch; without a workflow that posts it, every PR
+# in this repository stays BLOCKED. Keep this job fast and dependency-free.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality-gate:
+    name: quality-gate
+    # Private repositories use the fleet's self-hosted runners; public
+    # repositories use a hosted runner.
+    runs-on: ${{ github.event.repository.visibility != 'public' && 'd-sorg-fleet' || 'ubuntu-latest' }}
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject raw merge-conflict markers
+        run: |
+          if git grep -nI -E '^(<<<<<<<|>>>>>>>) ' -- ':!.github'; then
+            echo "::error::Raw git merge-conflict markers found."
+            exit 1
+          fi
+
+      - name: Reject files over 95 MB
+        run: |
+          big=$(git ls-files -z | xargs -0 -r stat -c '%s %n' | awk '$1 > 95 * 1024 * 1024 { $1 = ""; print }')
+          if [ -n "$big" ]; then
+            echo "::error::Files over 95 MB: $big"
+            exit 1
+          fi
+
+      - name: Check Python syntax
+        run: |
+          if git ls-files -z -- '*.py' | grep -qz .; then
+            git ls-files -z -- '*.py' | xargs -0 python3 -m py_compile
+          else
+            echo "No Python files tracked; skipping."
+          fi
